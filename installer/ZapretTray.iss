@@ -1,7 +1,10 @@
 ﻿#define AppName "Zapret Tray"
-#define AppVersion "0.1.0"
+#define AppVersion "0.2.0"
 #define AppPublisher "vitalyabsolute000-beep"
 #define AppExeName "ZapretTrayApp.exe"
+#ifndef AppSource
+  #define AppSource "..\dist\ZapretTrayApp.exe"
+#endif
 
 [Setup]
 AppId={{C3B28881-4320-4C5C-BE20-9C48A61B1F68}
@@ -32,7 +35,7 @@ Name: "russian"; MessagesFile: "compiler:Languages\Russian.isl"
 Name: "desktopicon"; Description: "Создать ярлык на рабочем столе"; GroupDescription: "Дополнительные ярлыки:"
 
 [Files]
-Source: "..\dist\ZapretTrayApp.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#AppSource}"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{autoprograms}\{#AppName}"; Filename: "{app}\{#AppExeName}"

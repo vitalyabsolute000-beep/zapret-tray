@@ -37,4 +37,4 @@ jobs:
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "${{ github.ref_name }}" dist/ZapretTraySetup-0.1.0.exe --title "Zapret Tray ${{ github.ref_name }}" --generate-notes
+        run: gh release create "${{ github.ref_name }}" dist/ZapretTraySetup-0.2.0.exe --title "Zapret Tray ${{ github.ref_name }}" --generate-notes

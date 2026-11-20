@@ -1,6 +1,5 @@
 using System.ComponentModel;
 using System.Diagnostics;
-using System.Reflection;
 using System.Text.Json;
 using Microsoft.Win32;
 
@@ -18,6 +17,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
     private readonly System.Windows.Forms.Timer _statusTimer = new() { Interval = 1000 };
     private readonly string _statePath;
     private AppState _state;
+    private DashboardForm? _dashboard;
     private string? _zapretRoot;
     private HashSet<string> _strategyPaths = new(StringComparer.OrdinalIgnoreCase);
     private bool _disposed;
@@ -39,7 +39,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
             _state.SelectedStrategy = GetDefaultStrategy();
         }
 
-        _appIcon = LoadAppIcon();
+        _appIcon = AppBranding.LoadIcon();
         BuildMenu();
 
         _trayIcon = new NotifyIcon
@@ -57,6 +57,11 @@ internal sealed class TrayApplicationContext : ApplicationContext
 
     private void BuildMenu()
     {
+        var openDashboard = new ToolStripMenuItem("Открыть панель управления");
+        openDashboard.Click += (_, _) => OpenDashboard();
+        _menu.Items.Add(openDashboard);
+        _menu.Items.Add(new ToolStripSeparator());
+
         _toggleMenu.Click += (_, _) => Toggle();
         _menu.Items.Add(_toggleMenu);
         _menu.Items.Add(new ToolStripSeparator());
@@ -94,7 +99,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
         foreach (var strategy in _strategyPaths
                      .OrderBy(path => Path.GetFileName(path), StringComparer.OrdinalIgnoreCase))
         {
-            var item = new ToolStripMenuItem(FormatStrategyName(strategy))
+            var item = new ToolStripMenuItem(StrategyDisplay.FormatName(strategy))
             {
                 Tag = strategy
             };
@@ -267,7 +272,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
         _toggleMenu.Text = running ? "Выключить" : "Включить";
         _selectedMenu.Text = _state.SelectedStrategy is null
             ? "Стратегия не выбрана"
-            : $"Стратегия: {FormatStrategyName(_state.SelectedStrategy)}";
+            : $"Стратегия: {StrategyDisplay.FormatName(_state.SelectedStrategy)}";
 
         foreach (var item in _menu.Items.OfType<ToolStripMenuItem>().Where(item => item.Tag is string))
         {
@@ -276,6 +281,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
         }
 
         _trayIcon.Text = BuildTrayText(running);
+        _dashboard?.UpdateState(_zapretRoot, _strategyPaths, _state.SelectedStrategy, running);
     }
 
     private string BuildTrayText()
@@ -288,14 +294,17 @@ internal sealed class TrayApplicationContext : ApplicationContext
         var state = running ? "включен" : "выключен";
         var strategy = _state.SelectedStrategy is null
             ? "нет стратегии"
-            : FormatStrategyName(_state.SelectedStrategy);
+            : StrategyDisplay.FormatName(_state.SelectedStrategy);
         return $"Zapret: {state} — {strategy}";
     }
 
     private void OpenSettings()
     {
         using var form = new SettingsForm(_zapretRoot, _state.StartWithWindows, _state.StopOnExit);
-        if (form.ShowDialog() != DialogResult.OK)
+        var result = _dashboard is { Visible: true }
+            ? form.ShowDialog(_dashboard)
+            : form.ShowDialog();
+        if (result != DialogResult.OK)
         {
             return;
         }
@@ -335,6 +344,31 @@ internal sealed class TrayApplicationContext : ApplicationContext
         UpdateIconAndMenu();
     }
 
+    private void OpenDashboard()
+    {
+        if (_dashboard is null || _dashboard.IsDisposed)
+        {
+            _dashboard = new DashboardForm();
+            _dashboard.ToggleRequested += Toggle;
+            _dashboard.StrategySelectionRequested += SelectStrategy;
+            _dashboard.SettingsRequested += OpenSettings;
+            _dashboard.FormClosed += (_, _) => _dashboard = null;
+        }
+
+        UpdateIconAndMenu();
+        if (!_dashboard.Visible)
+        {
+            _dashboard.Show();
+        }
+
+        if (_dashboard.WindowState == FormWindowState.Minimized)
+        {
+            _dashboard.WindowState = FormWindowState.Normal;
+        }
+
+        _dashboard.Activate();
+    }
+
     private void OpenZapretFolder()
     {
         if (_zapretRoot is null || !Directory.Exists(_zapretRoot))
@@ -372,19 +406,6 @@ internal sealed class TrayApplicationContext : ApplicationContext
             .FirstOrDefault();
     }
 
-    private static string FormatStrategyName(string path)
-    {
-        var name = Path.GetFileNameWithoutExtension(path);
-        if (name.Equals("general", StringComparison.OrdinalIgnoreCase))
-        {
-            return "General";
-        }
-
-        return name.StartsWith("general ", StringComparison.OrdinalIgnoreCase)
-            ? name["general ".Length..].Trim().Trim('(', ')')
-            : name;
-    }
-
     private static bool IsZapretDirectory(string? path)
     {
         return !string.IsNullOrWhiteSpace(path)
@@ -418,14 +439,6 @@ internal sealed class TrayApplicationContext : ApplicationContext
         }
 
         return null;
-    }
-
-    private static Icon LoadAppIcon()
-    {
-        using var stream = Assembly.GetExecutingAssembly()
-            .GetManifestResourceStream("ZapretTrayApp.app.ico")
-            ?? throw new InvalidOperationException("В сборке не найден файл иконки приложения.");
-        return new Icon(stream);
     }
 
     private AppState LoadState()
@@ -499,6 +512,8 @@ internal sealed class TrayApplicationContext : ApplicationContext
         {
             if (disposing)
             {
+                _dashboard?.Close();
+                _dashboard?.Dispose();
                 _statusTimer.Dispose();
                 _trayIcon.Visible = false;
                 _trayIcon.Dispose();
