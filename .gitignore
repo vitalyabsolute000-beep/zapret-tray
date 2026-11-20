@@ -1,0 +1,6 @@
+bin/
+obj/
+dist/
+zapret-discord-youtube/
+*.csproj.user
+*.user
