@@ -14,10 +14,9 @@
 
 ## Запуск
 
-1. Запустите `ZapretTrayApp.exe` из папки `dist`.
-2. При необходимости нажмите ПКМ по значку → «Настройки...» и выберите папку zapret.
-3. Разрешите запрос прав администратора: стратегии используют WinDivert.
-4. Нажмите ЛКМ для включения или ПКМ для выбора стратегии и других настроек.
+Скачайте `ZapretTraySetup-0.1.0.exe` со страницы [Releases](https://github.com/vitalyabsolute000-beep/zapret-tray/releases), запустите установщик и следуйте подсказкам. Установщик ставит только Zapret Tray — сам zapret скачивается отдельно.
+
+После установки запустите приложение, нажмите ПКМ по значку в трее → «Настройки...» и выберите папку `zapret-discord-youtube`. При включении zapret Windows запросит права администратора: они нужны для WinDivert. Установщик создаёт ярлык в меню «Пуск» и предлагает создать ярлык на рабочем столе.
 
 Windows может показывать запрос UAC при каждом запуске приложения, в том числе при включенном автозапуске.
 
@@ -25,8 +24,14 @@ Windows может показывать запрос UAC при каждом з�
 
 ## Сборка из исходников
 
-Нужны Windows и .NET 10 SDK. Из папки `ZapretTrayApp` выполните:
+Нужны Windows и .NET 10 SDK. Из корня репозитория выполните:
 
 ```powershell
-dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o ..\dist
+dotnet publish ZapretTrayApp/ZapretTrayApp.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o dist
+```
+
+Для сборки установщика нужен Inno Setup 6. После публикации приложения выполните:
+
+```powershell
+ISCC.exe installer/ZapretTray.iss
 ```
